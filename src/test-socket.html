@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Tracking en Tiempo Real</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    #log { background: #f0f0f0; padding: 15px; margin-top: 20px; height: 300px; overflow-y: auto; border-radius: 8px; }
+    .evento { padding: 5px; border-bottom: 1px solid #ddd; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h2>Test Tracking Delivery en Tiempo Real</h2>
+  
+  <button onclick="unirseAlPedido()">Unirse al Pedido #1</button>
+  <button onclick="simularMovimiento()">Simular Movimiento Repartidor</button>
+  <button onclick="cambiarEstado()">Cambiar Estado a Entregado</button>
+
+  <div id="log"></div>
+
+  <script>
+    const socket = io('http://localhost:3000');
+    const log = document.getElementById('log');
+
+    function agregarLog(mensaje, color = '#333') {
+      const div = document.createElement('div');
+      div.className = 'evento';
+      div.style.color = color;
+      div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> — ${mensaje}`;
+      log.prepend(div);
+    }
+
+    socket.on('connect', () => {
+      agregarLog('Conectado al servidor', 'green');
+    });
+
+    socket.on('ubicacion_actualizada', (data) => {
+      agregarLog(`Repartidor en: Lat ${data.latitud}, Lng ${data.longitud}`, 'blue');
+    });
+
+    socket.on('estado_actualizado', (data) => {
+      agregarLog(`Estado del pedido cambiado a: ${data.estado}`, 'orange');
+    });
+
+    function unirseAlPedido() {
+      socket.emit('unirse_pedido', 1);
+      agregarLog('Unido al pedido #1 — esperando actualizaciones...');
+    }
+
+    let lat = -33.4489;
+    let lng = -70.6693;
+
+    function simularMovimiento() {
+      lat += 0.001;
+      lng += 0.001;
+      socket.emit('actualizar_ubicacion', {
+        pedidoId: 1,
+        latitud: lat.toFixed(4),
+        longitud: lng.toFixed(4)
+      });
+      agregarLog(`Enviando ubicación: ${lat.toFixed(4)}, ${lng.toFixed(4)}`, 'purple');
+    }
+
+    function cambiarEstado() {
+      socket.emit('cambiar_estado_pedido', {
+        pedidoId: 1,
+        estado: 'entregado'
+      });
+      agregarLog('Enviando cambio de estado...', 'red');
+    }
+  </script>
+</body>
+</html>
