@@ -1,6 +1,6 @@
-const pedidos = [];
+const Pedido = require('../models/Pedido');
 
-const crearPedido = (req, res) => {
+const crearPedido = async (req, res) => {
   try {
     const { productos, direccionEntrega, metodoPago } = req.body;
 
@@ -10,20 +10,13 @@ const crearPedido = (req, res) => {
 
     const total = productos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
 
-    const pedido = {
-      id: pedidos.length + 1,
+    const pedido = await Pedido.create({
       clienteId: req.usuario.id,
       productos,
       direccionEntrega,
       metodoPago,
-      total,
-      estado: 'pendiente',
-      repartidorId: null,
-      fechaCreacion: new Date(),
-      fechaEntrega: null
-    };
-
-    pedidos.push(pedido);
+      total
+    });
 
     res.status(201).json({
       mensaje: 'Pedido creado correctamente',
@@ -31,34 +24,35 @@ const crearPedido = (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
-const obtenerPedidos = (req, res) => {
+const obtenerPedidos = async (req, res) => {
   try {
     const { rol, id } = req.usuario;
+    let pedidos;
 
     if (rol === 'admin') {
-      return res.json({ pedidos });
+      pedidos = await Pedido.findAll({ order: [['createdAt', 'DESC']] });
+    } else if (rol === 'repartidor') {
+      pedidos = await Pedido.findAll({ where: { repartidorId: id }, order: [['createdAt', 'DESC']] });
+    } else {
+      pedidos = await Pedido.findAll({ where: { clienteId: id }, order: [['createdAt', 'DESC']] });
     }
 
-    if (rol === 'repartidor') {
-      const misPedidos = pedidos.filter(p => p.repartidorId === id);
-      return res.json({ pedidos: misPedidos });
-    }
-
-    const misPedidos = pedidos.filter(p => p.clienteId === id);
-    res.json({ pedidos: misPedidos });
+    res.json({ pedidos });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
-const obtenerPedidoPorId = (req, res) => {
+const obtenerPedidoPorId = async (req, res) => {
   try {
-    const pedido = pedidos.find(p => p.id === parseInt(req.params.id));
+    const pedido = await Pedido.findByPk(req.params.id);
 
     if (!pedido) {
       return res.status(404).json({ mensaje: 'Pedido no encontrado' });
@@ -67,11 +61,12 @@ const obtenerPedidoPorId = (req, res) => {
     res.json({ pedido });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
-const actualizarEstado = (req, res) => {
+const actualizarEstado = async (req, res) => {
   try {
     const { estado, repartidorId } = req.body;
     const estadosValidos = ['pendiente', 'confirmado', 'preparando', 'en_camino', 'entregado', 'cancelado'];
@@ -80,21 +75,17 @@ const actualizarEstado = (req, res) => {
       return res.status(400).json({ mensaje: 'Estado no válido' });
     }
 
-    const pedido = pedidos.find(p => p.id === parseInt(req.params.id));
+    const pedido = await Pedido.findByPk(req.params.id);
 
     if (!pedido) {
       return res.status(404).json({ mensaje: 'Pedido no encontrado' });
     }
 
     pedido.estado = estado;
+    if (repartidorId) pedido.repartidorId = repartidorId;
+    if (estado === 'entregado') pedido.fechaEntrega = new Date();
 
-    if (repartidorId) {
-      pedido.repartidorId = repartidorId;
-    }
-
-    if (estado === 'entregado') {
-      pedido.fechaEntrega = new Date();
-    }
+    await pedido.save();
 
     res.json({
       mensaje: 'Estado actualizado correctamente',
@@ -102,6 +93,7 @@ const actualizarEstado = (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };

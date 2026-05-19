@@ -3,8 +3,14 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
+require('./models/Usuario');
+require('./models/Pedido');
+require('./models/Repartidor');
 
+const { conectarDB } = require('./database/connection');
 const authRoutes = require('./routes/auth');
+const pedidosRoutes = require('./routes/pedidos');
+const repartidoresRoutes = require('./routes/repartidores');
 
 const app = express();
 const server = http.createServer(app);
@@ -20,9 +26,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-const pedidosRoutes = require('./routes/pedidos');
 app.use('/api/pedidos', pedidosRoutes);
-const repartidoresRoutes = require('./routes/repartidores');
 app.use('/api/repartidores', repartidoresRoutes);
 
 io.on('connection', (socket) => {
@@ -58,6 +62,9 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+
+conectarDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  });
 });

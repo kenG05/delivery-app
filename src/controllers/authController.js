@@ -1,28 +1,24 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-
-const usuarios = [];
+const Usuario = require('../models/Usuario');
 
 const registro = async (req, res) => {
   try {
     const { nombre, email, password, rol } = req.body;
 
-    const usuarioExiste = usuarios.find(u => u.email === email);
+    const usuarioExiste = await Usuario.findOne({ where: { email } });
     if (usuarioExiste) {
       return res.status(400).json({ mensaje: 'El email ya está registrado' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const usuario = {
-      id: usuarios.length + 1,
+    const usuario = await Usuario.create({
       nombre,
       email,
       password: passwordHash,
       rol: rol || 'cliente'
-    };
-
-    usuarios.push(usuario);
+    });
 
     const token = jwt.sign(
       { id: usuario.id, rol: usuario.rol },
@@ -37,6 +33,7 @@ const registro = async (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
@@ -45,7 +42,7 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const usuario = usuarios.find(u => u.email === email);
+    const usuario = await Usuario.findOne({ where: { email } });
     if (!usuario) {
       return res.status(400).json({ mensaje: 'Email o password incorrecto' });
     }
@@ -68,6 +65,7 @@ const login = async (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
