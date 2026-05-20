@@ -37,9 +37,21 @@ const obtenerPedidos = async (req, res) => {
     if (rol === 'admin') {
       pedidos = await Pedido.findAll({ order: [['createdAt', 'DESC']] });
     } else if (rol === 'repartidor') {
-      pedidos = await Pedido.findAll({ where: { repartidorId: id }, order: [['createdAt', 'DESC']] });
+      const Repartidor = require('../models/Repartidor');
+      const repartidor = await Repartidor.findOne({ where: { email: req.usuario.email } });
+      if (repartidor) {
+        pedidos = await Pedido.findAll({ 
+          where: { repartidorId: repartidor.id }, 
+          order: [['createdAt', 'DESC']] 
+        });
+      } else {
+        pedidos = [];
+      }
     } else {
-      pedidos = await Pedido.findAll({ where: { clienteId: id }, order: [['createdAt', 'DESC']] });
+      pedidos = await Pedido.findAll({ 
+        where: { clienteId: id }, 
+        order: [['createdAt', 'DESC']] 
+      });
     }
 
     res.json({ pedidos });
