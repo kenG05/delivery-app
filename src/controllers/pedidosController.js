@@ -82,8 +82,40 @@ const actualizarEstado = async (req, res) => {
     }
 
     pedido.estado = estado;
-    if (repartidorId) pedido.repartidorId = repartidorId;
-    if (estado === 'entregado') pedido.fechaEntrega = new Date();
+
+    if (repartidorId) {
+      pedido.repartidorId = repartidorId;
+    }
+
+    if (estado === 'confirmado' && !pedido.repartidorId) {
+      const Repartidor = require('../models/Repartidor');
+      const repartidorDisponible = await Repartidor.findOne({
+        where: { disponible: true }
+      });
+
+      if (repartidorDisponible) {
+        pedido.repartidorId = repartidorDisponible.id;
+        repartidorDisponible.disponible = false;
+        repartidorDisponible.pedidoActual = pedido.id;
+        await repartidorDisponible.save();
+        console.log(`Repartidor ${repartidorDisponible.nombre} asignado al pedido #${pedido.id}`);
+      } else {
+        console.log('No hay repartidores disponibles');
+      }
+    }
+
+    if (estado === 'entregado') {
+      pedido.fechaEntrega = new Date();
+      if (pedido.repartidorId) {
+        const Repartidor = require('../models/Repartidor');
+        const repartidor = await Repartidor.findByPk(pedido.repartidorId);
+        if (repartidor) {
+          repartidor.disponible = true;
+          repartidor.pedidoActual = null;
+          await repartidor.save();
+        }
+      }
+    }
 
     await pedido.save();
 
@@ -97,5 +129,4 @@ const actualizarEstado = async (req, res) => {
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
-
 module.exports = { crearPedido, obtenerPedidos, obtenerPedidoPorId, actualizarEstado };

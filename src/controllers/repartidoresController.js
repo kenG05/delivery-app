@@ -1,22 +1,17 @@
-const repartidores = [];
+const Repartidor = require('../models/Repartidor');
 
-const registrarRepartidor = (req, res) => {
+const registrarRepartidor = async (req, res) => {
   try {
     const { nombre, email, telefono, vehiculo } = req.body;
 
-    const repartidor = {
-      id: repartidores.length + 1,
+    const repartidor = await Repartidor.create({
       nombre,
       email,
       telefono,
       vehiculo,
       disponible: true,
-      ubicacion: null,
-      pedidoActual: null,
-      fechaRegistro: new Date()
-    };
-
-    repartidores.push(repartidor);
+      pedidoActual: null
+    });
 
     res.status(201).json({
       mensaje: 'Repartidor registrado correctamente',
@@ -24,83 +19,78 @@ const registrarRepartidor = (req, res) => {
     });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
-const obtenerRepartidores = (req, res) => {
+const obtenerRepartidores = async (req, res) => {
   try {
+    const repartidores = await Repartidor.findAll();
     res.json({ repartidores });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
-const actualizarUbicacion = (req, res) => {
+const actualizarUbicacion = async (req, res) => {
   try {
     const { latitud, longitud } = req.body;
-
-    const repartidor = repartidores.find(r => r.id === parseInt(req.params.id));
+    const repartidor = await Repartidor.findByPk(req.params.id);
 
     if (!repartidor) {
       return res.status(404).json({ mensaje: 'Repartidor no encontrado' });
     }
 
-    repartidor.ubicacion = {
-      latitud,
-      longitud,
-      ultimaActualizacion: new Date()
-    };
+    repartidor.latitud = latitud;
+    repartidor.longitud = longitud;
+    await repartidor.save();
 
-    res.json({
-      mensaje: 'Ubicación actualizada',
-      repartidor
-    });
+    res.json({ mensaje: 'Ubicación actualizada', repartidor });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
-const actualizarDisponibilidad = (req, res) => {
+const actualizarDisponibilidad = async (req, res) => {
   try {
     const { disponible } = req.body;
-
-    const repartidor = repartidores.find(r => r.id === parseInt(req.params.id));
+    const repartidor = await Repartidor.findByPk(req.params.id);
 
     if (!repartidor) {
       return res.status(404).json({ mensaje: 'Repartidor no encontrado' });
     }
 
     repartidor.disponible = disponible;
+    await repartidor.save();
 
-    res.json({
-      mensaje: 'Disponibilidad actualizada',
-      repartidor
-    });
+    res.json({ mensaje: 'Disponibilidad actualizada', repartidor });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
 
-const asignarPedidoAutomatico = (req, res) => {
+const asignarPedidoAutomatico = async (req, res) => {
   try {
-    const repartidorDisponible = repartidores.find(r => r.disponible === true);
+    const repartidor = await Repartidor.findOne({ where: { disponible: true } });
 
-    if (!repartidorDisponible) {
-      return res.status(404).json({ mensaje: 'No hay repartidores disponibles en este momento' });
+    if (!repartidor) {
+      return res.status(404).json({ mensaje: 'No hay repartidores disponibles' });
     }
 
-    repartidorDisponible.disponible = false;
-    repartidorDisponible.pedidoActual = req.params.pedidoId;
+    repartidor.disponible = false;
+    repartidor.pedidoActual = req.params.pedidoId;
+    await repartidor.save();
 
-    res.json({
-      mensaje: 'Repartidor asignado correctamente',
-      repartidor: repartidorDisponible
-    });
+    res.json({ mensaje: 'Repartidor asignado', repartidor });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ mensaje: 'Error en el servidor' });
   }
 };
